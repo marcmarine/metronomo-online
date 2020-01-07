@@ -3,13 +3,13 @@ import { TempoContext } from '../contexts/TempoContext'
 
 import './Metronomo.css'
 
-const startMetronome = function (tempo) {
+const startPendulo = function (tempo) {
   let duration = 60 / tempo;
   document.querySelector('.pendulo').style.animationDuration = duration * 2 + 's';
   document.querySelector('.pendulo').style.animationName = 'tick';
 }
 
-const stopMetronome = function () {
+const stopPendulo = function () {
   document.querySelector('.pendulo').style.animationDuration = '0s';
   document.querySelector('.pendulo').style.animationName = 'none';
 }
@@ -17,49 +17,97 @@ const stopMetronome = function () {
 const Metronomo = () => {
   const { tempo, isPlaying, tempos } = useContext(TempoContext)
   useEffect(()=> {
-    if (isPlaying) {
-      startMetronome(tempo)
-      const lookahead = 0.010;
-      let nextNoteTime = 0.0 + 60.0 / tempo / 2;
-      const audioContext = new AudioContext()
-      function schedule() {
-          var sequenceTime = audioContext.currentTime
-      
-          while (nextNoteTime < sequenceTime + lookahead ) {
-              var osc = audioContext.createOscillator()
-              osc.connect( audioContext.destination )
-              osc.start( nextNoteTime )
-              osc.stop( nextNoteTime + 0.05 )
-              var secondsPerBeat = 60.0 / tempo
-              nextNoteTime += secondsPerBeat
-          }
-      }
-      setInterval( schedule )
-    } else {
-      stopMetronome()
-      for (var i = 1; i < 99999; i++)
-      clearInterval(i)
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContext();
+
+    // Loading ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // fetch the audio file and decode the data
+    async function getFile(audioContext, filepath) {
+      const response = await fetch(filepath);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+      return audioBuffer;
     }
+    // create a buffer, plop in data, connect and play -> modify graph here if required
+    function playSample(audioContext, audioBuffer) {
+      const sampleSource = audioContext.createBufferSource();
+      sampleSource.buffer = audioBuffer;
+      sampleSource.connect(audioContext.destination)
+      sampleSource.start();
+      return sampleSource;
+    }
+    async function setupSample() {
+      const filePath = 'audio/down.wav';
+      // Here we're `await`ing the async/promise that is `getFile`.
+      // To be able to use this keyword we need to be within an `async` function
+      const sample = await getFile(audioCtx, filePath);
+      return sample;
+    }
+    // Scheduling ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    const lookahead = 10.0; // How frequently to call scheduling function (in milliseconds)
+    const scheduleAheadTime = 0.1; // How far ahead to schedule audio (sec)
+    let currentNote = 0;
+    let nextNoteTime = 0.0; // when the next note is due.
+    function nextNote() {
+      const secondsPerBeat = 60.0 / tempo;
+      nextNoteTime += secondsPerBeat; // Add beat length to last beat time
+      currentNote++
+    }
+    // Create a queue for the notes that are to be played, with the current time that we want them to play:
+    const notesInQueue = [];
+    let dtmf;
+    function scheduleNote(beatNumber, time) {
+      // push the note on the queue, even if we're not playing.
+      notesInQueue.push({note: beatNumber, time: time});
+      if ( currentNote !== 0 ) {
+        playSample(audioCtx, dtmf);
+      }
+    }
+    let timerID;
+    function scheduler() {
+      // while there are notes that will need to play before the next interval,
+      // schedule them and advance the pointer.
+      while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime ) {
+          scheduleNote(currentNote, nextNoteTime);
+          nextNote();
+      }
+      timerID = window.setTimeout(scheduler, lookahead);
+    }
+    // when the sample has loaded allow play
+    setupSample()
+      .then((sample) => {
+        dtmf = sample; // to be used in our playSample function
+        if (isPlaying) { // start playing
+          // check if context is in suspended state (autoplay policy)
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          nextNoteTime = audioCtx.currentTime;
+          startPendulo(tempo)
+          scheduler(); // kick off scheduling
+        } else {
+          // window.clearTimeout(timerID); 
+          stopPendulo()
+        }
+      })
+    return () => window.clearInterval(timerID);
   })
   let weightPosition = `calc( ( ${tempos.indexOf(tempo)} + 1 ) * 8.62px)`
   return (
     <div className="metronomo">
-      {console.log(tempos.indexOf(tempo))}
         <div className="mask">
           <div className="pendulo">
             <label className="peso" style={{ top: weightPosition}}>
               <svg viewBox="0 0 104 94">
-                <g id="metronomo">
-                  <g id="conjunto-palo">
-                    <g id="peso">
-                      <g id="peso-base">
-                        <path fill="#666" d="M86 79a13 13 0 01-12 10H30a13 13 0 01-12-10L5 15a8 8 0 018-10h78a8 8 0 018 10z"/>
-                        <path fill="none" stroke="#313131" stroke-miterlimit="10" stroke-width="10" d="M86 79a13 13 0 01-12 10H30a13 13 0 01-12-10L5 15a8 8 0 018-10h78a8 8 0 018 10z"/>
-                      </g>
-                      <g id="peso-ciruclos">
-                        <circle id="circulo2" cx="72.6" cy="28.3" r="12.5" fill="#313131"/>
-                        <circle id="circulo1" cx="31.6" cy="28.3" r="12.5" fill="#313131"/>
-                      </g>
+                <g id="conjunto-palo">
+                  <g id="peso">
+                    <g id="peso-base">
+                      <path fill="#666" d="M86 79a13 13 0 01-12 10H30a13 13 0 01-12-10L5 15a8 8 0 018-10h78a8 8 0 018 10z"/>
+                      <path fill="none" stroke="#313131" strokeMiterlimit="10" strokeWidth="10" d="M86 79a13 13 0 01-12 10H30a13 13 0 01-12-10L5 15a8 8 0 018-10h78a8 8 0 018 10z"/>
+                    </g>
+                    <g id="peso-ciruclos">
+                      <circle id="circulo2" cx="72.6" cy="28.3" r="12.5" fill="#313131"/>
+                      <circle id="circulo1" cx="31.6" cy="28.3" r="12.5" fill="#313131"/>
                     </g>
                   </g>
                 </g>
@@ -121,21 +169,6 @@ const Metronomo = () => {
               <line className="marca" x1="950.5" y1="803" x2="999.4" y2="803"/>
               <line className="marca" x1="999.4" y1="380.4" x2="999.4" y2="854.4"/>
           </g>
-          {/* <g id="conjunto-palo">
-            <line id="palo" fill="none" stroke="#313131" strokeWidth="10" strokeLinecap="round" strokeMiterlimit="10" x1="999.4" y1="373.4" x2="999.4" y2="854.4"/>
-            <g id="peso">
-              <g id="peso-base">
-                <path fill="#666666" d="M1033.6,577.2c-1.1,5.4-6.5,9.8-12,9.8l-43.7-0.1c-5.5,0-10.9-4.4-12-9.8L953.1,513
-                  c-1.1-5.4,2.5-9.8,8-9.8l77.7,0.2c5.5,0,9.1,4.4,8,9.8L1033.6,577.2z"/>
-                <path fill="none" stroke="#313131" strokeWidth="10" strokeMiterlimit="10" d="M1033.6,577.2c-1.1,5.4-6.5,9.8-12,9.8l-43.7-0.1c-5.5,0-10.9-4.4-12-9.8L953.1,513
-                  c-1.1-5.4,2.5-9.8,8-9.8l77.7,0.2c5.5,0,9.1,4.4,8,9.8L1033.6,577.2z"/>
-              </g>
-              <g id="peso-ciruclos">
-                <circle id="circulo2" fill="#313131" cx="1020.5" cy="526.5" r="12.5"/>
-                <circle id="circulo1" fill="#313131" cx="979.5" cy="526.5" r="12.5"/>
-              </g>
-            </g>
-          </g> */}
           <path id="borde-division" className="borde" d="M843.4,856.6h312.2H843.4z"/>
           <path id="borde-base" className="borde" d="M864.4,1091.6c6.9,3.9,11.6,11.3,11.6,19.8c0,12.5-10.2,22.7-22.7,22.7s-22.7-10.2-22.7-22.7
             c0-8.5,4.7-15.9,11.6-19.8l0,0h-3.8c-18,0-31.7-16.2-28.7-33.9l33.8-201v-0.2L923,380.1c2.4-14,14.5-24.2,28.7-24.2h95.3
