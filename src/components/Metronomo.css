@@ -52,7 +52,6 @@
 	animation-name: tick;
 	animation-iteration-count: infinite;
   animation-timing-function: ease-in-out;
-  animation-fill-mode: forwards;
 }
 
 .peso {

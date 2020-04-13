@@ -6,45 +6,44 @@ import './Metronomo.css'
 const startPendulo = function (tempo) {
   let duration = 60 / tempo;
   document.querySelector('.pendulo').style.animationDuration = duration * 2 + 's';
-  document.querySelector('.pendulo').style.animationName = 'tick';
+  // document.querySelector('.pendulo').style.animationName = 'tick';
 }
 
 const stopPendulo = function () {
   document.querySelector('.pendulo').style.animationDuration = '0s';
-  document.querySelector('.pendulo').style.animationName = 'none';
+  // document.querySelector('.pendulo').style.animationName = 'none';
 }
 
 const Metronomo = () => {
   const { tempo, isPlaying, tempos } = useContext(TempoContext)
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  const audioCtx = new AudioContext();
+  // Loading ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  // fetch the audio file and decode the data
+  async function getFile(audioContext, filepath) {
+    const response = await fetch(filepath);
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    return audioBuffer;
+  }
+  // create a buffer, plop in data, connect and play -> modify graph here if required
+  function playSample(audioContext, audioBuffer) {
+    const sampleSource = audioContext.createBufferSource();
+    sampleSource.buffer = audioBuffer;
+    sampleSource.connect(audioContext.destination)
+    sampleSource.start();
+    return sampleSource;
+  }
+  async function setupSample() {
+    const filePath = 'audio/tap.wav';
+    // Here we're `await`ing the async/promise that is `getFile`.
+    // To be able to use this keyword we need to be within an `async` function
+    const sample = await getFile(audioCtx, filePath);
+    return sample;
+  }
   useEffect(()=> {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioContext();
-
-    // Loading ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    // fetch the audio file and decode the data
-    async function getFile(audioContext, filepath) {
-      const response = await fetch(filepath);
-      const arrayBuffer = await response.arrayBuffer();
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      return audioBuffer;
-    }
-    // create a buffer, plop in data, connect and play -> modify graph here if required
-    function playSample(audioContext, audioBuffer) {
-      const sampleSource = audioContext.createBufferSource();
-      sampleSource.buffer = audioBuffer;
-      sampleSource.connect(audioContext.destination)
-      sampleSource.start();
-      return sampleSource;
-    }
-    async function setupSample() {
-      const filePath = 'audio/down.wav';
-      // Here we're `await`ing the async/promise that is `getFile`.
-      // To be able to use this keyword we need to be within an `async` function
-      const sample = await getFile(audioCtx, filePath);
-      return sample;
-    }
     // Scheduling ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    const lookahead = 10.0; // How frequently to call scheduling function (in milliseconds)
+    const lookahead = 25.0; // How frequently to call scheduling function (in milliseconds)
     const scheduleAheadTime = 0.1; // How far ahead to schedule audio (sec)
     let currentNote = 0;
     let nextNoteTime = 0.0; // when the next note is due.
@@ -63,7 +62,7 @@ const Metronomo = () => {
         playSample(audioCtx, dtmf);
       }
     }
-    let timerID;
+    let timerID
     function scheduler() {
       // while there are notes that will need to play before the next interval,
       // schedule them and advance the pointer.
@@ -86,7 +85,7 @@ const Metronomo = () => {
           startPendulo(tempo)
           scheduler(); // kick off scheduling
         } else {
-          // window.clearTimeout(timerID); 
+          window.clearTimeout(timerID); 
           stopPendulo()
         }
       })
