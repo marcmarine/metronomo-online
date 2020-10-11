@@ -13,9 +13,14 @@
   --palo-ancho: 10px;
 }
 
+body {
+  overflow: hidden;
+}
+
 .metronomo {
   max-width: 300px;
-  margin: 14vh auto;
+  margin-top: 50%;
+  margin: 17vh auto;
   position:relative;
 }
 
@@ -61,6 +66,7 @@
   /* border-radius: 8px; */
   /* border: 8px solid #313131; */
   left: -33px;
+  transition: all 50ms;
 }
 
 .borde {
@@ -88,15 +94,16 @@
 
 .controls {
   /* display: none; */
-  opacity: .1;
+  opacity: 1;
   position: fixed;
-  bottom: 0;
-  left: 0%;
-  /* border-top-left-radius: 10px; */
-  border-top-right-radius: 10px;
-  overflow: hidden;
-  /* transform: translateX(-50%); */
-  transition: all 500ms ease-in-out;
+  top: 4.8rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.controls button {
+  margin-bottom: .5rem;
 }
 
 .controls:hover {
@@ -124,4 +131,51 @@
   0%,
 	100% { transform: rotate(15deg)}
 	50% { transform: rotate(-15deg)}
+}
+
+.button {
+  cursor: pointer;
+  background-color: #d1d1d1;
+  color: #312f31;
+  border: .4em solid #312f31;
+  border-radius: 50%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  transform: translateY(0);
+  /* box-shadow: 0 0.3em 0.5em 0 rgba(0,0,0,.1); */
+}
+
+.button:active {
+  transform: scale(.95);
+}
+
+.button--control {
+  display: flex;
+  font-size: .8em;
+  width: 4em;
+  height: 4em;
+  border-radius: 50%;
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+}
+
+.layout-buttons {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+}
+
+.button--selector {
+  background-color: #666;
+}
+
+.button--control svg {
+  width: 100%;
+  height: 100%;
+}
+
+.button__icon-svg {
+  stroke: #312f31;
+  stroke-width: 5;
 }
